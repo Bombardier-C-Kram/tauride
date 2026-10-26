@@ -5,7 +5,9 @@
 
 use serde::Deserialize;
 use serde_json::json;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[cfg(unix)]
+use std::collections::HashSet;
 use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
