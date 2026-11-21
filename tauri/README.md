@@ -215,6 +215,13 @@ protocol log, dialogs and Status Output start in it (`src/page_theme.js`)
 before their session sends changes. The Linux menu bar is Ride's HTML menu
 and takes its colours from the theme sheets.
 
+The theme sheets (`style/less/themes`) map Ride's UI roles onto the Dyalog
+brand palette in `brand.less`: `base.less` is the light theme and `dark.less`
+overrides it. The built-in Dyalog Light and Dyalog Dark schemes use the same
+palette and are the defaults when following the system. Electron Ride 4.8
+reads the same `prefs.json`; it ignores the follow-system keys and, not
+knowing the Dyalog schemes, keeps its default styling when one is chosen.
+
 The APL font preference (`customAplFont`) is a comma-separated list of names
 for CSS `local()`, ahead of the bundled APL385 Unicode. The Style tab offers
 the fonts `fonts.rs` finds and stores one by its full and PostScript names:

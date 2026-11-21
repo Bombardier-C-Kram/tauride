@@ -77,8 +77,8 @@ test('the Style tab offers light and dark schemes for following the system', asy
     };
   });
   t.true(lists.follow);
-  t.deepEqual(lists.light, ['Default', 'Albrecht Dürer']);
-  t.deepEqual(lists.dark, ['Francisco Goya', 'Dracula', 'New Moon', 'Nord']);
+  t.deepEqual(lists.light, ['Dyalog Light', 'Default', 'Albrecht Dürer']);
+  t.deepEqual(lists.dark, ['Dyalog Dark', 'Francisco Goya', 'Dracula', 'New Moon', 'Nord']);
 
   // Choosing a dark scheme shows it in the sample; OK saves it.
   await c.execute(() => {

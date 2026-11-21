@@ -31,6 +31,12 @@
     const o = a === undefined ? '' : `00${Math.round(a * 255).toString(16)}`.slice(-2);
     return RGB(x) + o;
   };
+  // mix('#rrggbb', '#rrggbb', t): the colour t of the way from a to b.
+  const mix = (a, b, t) => {
+    const c = (x, i) => parseInt(x.slice(i, i + 2), 16);
+    return `#${[1, 3, 5].map((i) => Math.round(c(a, i) + (c(b, i) - c(a, i)) * t)
+      .toString(16).padStart(2, '0')).join('')}`;
+  };
   const rgb = (x) => {
     if (!/^#.{6}$/.test(x)) return x;
     const [, r, rr, g, gg, b, bb] = x;
@@ -80,6 +86,16 @@
     return r;
   };
   const SCMS = [ // built-in schemes
+  {
+    name: "Dyalog Light",
+    styles: "norm=fg:#232222,bg:#ffffff,bgo:1 com=fg:#5f6573,I kw=fg:#ad4913 fn=fg:#1c516e op1=fg:#584da9 op2=fg:#584da9 asgn=fg:#ad4913 diam=fg:#ad4913 str=fg:#1a7a4a num=fg:#7a6400 zld=fg:#7a6400 quad=fg:#493f8b qdl=fg:#493f8b scmd=fg:#493f8b ucmd=fg:#493f8b,B glb=fg:#843914 var=fg:#232222 ns=fg:#396780 trad=fg:#232222,B lbl=fg:#584da9,U err=fg:#ca2e51 itk=fg:#ca2e51,U idm=U lnum=fg:#5f6573,bgo:0 lnac=fg:#232222 sel=bg:#c3bde9,bgo:0.7 mtch=bg:#c3bde9,bgo:0.5 srch=bg:#ffa671,bgo:0.5 tc=bg:#e3e9ed,bgo:1 tcpe=bg:#e4e5e8,bgo:1 cur=fg:#d65a13 acsl=bg:#c3bde9,bgo:0.6 vtip=bg:#2a3244,fg:#e4e5e8,bgo:1,bc:#685bc7 vtt=bc:#ff6a13 dc=bg:#f9e6ea,bgo:1 mod=bg:#e1def4,bgo:1 semi=fg:#454c5b sqbr=fg:#454c5b par=fg:#454c5b cubr=fg:#454c5b an=fg:#454c5b ann=fg:#232222 dfn=fg:#232222 dfn1=fg:#584da9 dfn2=fg:#1c516e dfn3=fg:#ad4913 dfn4=fg:#1a7a4a dfn5=fg:#7a6400 cv=bg:#f2f1f0,bgo:1,fg:#1a7a4a cvv=bg:#f2f1f0,bgo:1,fg:#1c516e cm=bg:#f2f1f0,bgo:1,fg:#584da9 ca=bg:#f2f1f0,bgo:1,fg:#ad4913 na=bg:#f2f1f0,bgo:1,fg:#7a6400 ma=bg:#f2f1f0,bgo:1,fg:#493f8b qor=bg:#ca2e51,bgo:1,fg:#ffffff",
+    theme: "light",
+  },
+  {
+    name: "Dyalog Dark",
+    styles: "norm=fg:#e4e5e8,bg:#151624,bgo:1 com=fg:#9498a2,I kw=fg:#ff8842 fn=fg:#aabec9 op1=fg:#a49ddd op2=fg:#a49ddd asgn=fg:#ffa671 diam=fg:#ffa671 str=fg:#2eca7c num=fg:#f3db4c zld=fg:#f3db4c quad=fg:#c3bde9 qdl=fg:#c3bde9 scmd=fg:#c3bde9 ucmd=fg:#c3bde9,B glb=fg:#ffc3a1 var=fg:#e4e5e8 ns=fg:#8ea8b7 trad=fg:#e4e5e8,B lbl=fg:#a49ddd,U err=fg:#e8899e itk=fg:#e8899e,U idm=U lnum=fg:#7a7f8a,bgo:0 lnac=fg:#e4e5e8 sel=bg:#584da9,bgo:0.5 mtch=bg:#493f8b,bgo:0.6 srch=bg:#ff6a13,bgo:0.35 tc=bg:#052238,bgo:1 tcpe=bg:#1f2434,bgo:1 cur=fg:#ff6a13 acsl=bg:#584da9,bgo:0.6 vtip=bg:#e4e5e8,fg:#232222,bgo:1,bc:#685bc7 vtt=bc:#ff6a13 dc=bg:#5c2914,bgo:1 mod=bg:#292450,bgo:1 semi=fg:#afb2b9 sqbr=fg:#afb2b9 par=fg:#afb2b9 cubr=fg:#afb2b9 an=fg:#afb2b9 ann=fg:#e4e5e8 dfn=fg:#e4e5e8 dfn1=fg:#a49ddd dfn2=fg:#8ea8b7 dfn3=fg:#ffa671 dfn4=fg:#2eca7c dfn5=fg:#f3db4c cv=bg:#1f2434,bgo:1,fg:#2eca7c cvv=bg:#1f2434,bgo:1,fg:#8ea8b7 cm=bg:#1f2434,bgo:1,fg:#a49ddd ca=bg:#1f2434,bgo:1,fg:#ffa671 na=bg:#1f2434,bgo:1,fg:#f3db4c ma=bg:#1f2434,bgo:1,fg:#c3bde9 qor=bg:#ca2e51,bgo:1,fg:#ffffff",
+    theme: "dark",
+  },
   {
     name: "Default",
     styles: "asgn=fg:00f com=fg:088 dfn=fg:00f diam=fg:00f err=fg:f00 fn=fg:008 idm=fg:008 kw=fg:800 lnum=fg:008,bg:f,bgo:0 mtch=bg:ff8,bgo:0.5 norm=bg:f,bgo:1 ns=fg:8 num=fg:8 op1=fg:00f op2=fg:00f an=fg:#c000c0 par=fg:00f quad=fg:808 qdl=fg:c0c sel=bg:48e,bgo:0.5 semi=fg:00f sqbr=fg:00f srch=bg:f80,bgo:0.5 str=fg:088 tc=bg:d,bgo:1 tcpe=bg:c8c8c8,bgo:1 trad=fg:8 var=fg:8 zld=fg:008 scmd=fg:#00c0c0 ucmd=fg:00f vtt=bg:ff0 ca=bg:828282,bgo:1,fg:0f0 cm=bg:0,bgo:1,fg:080 cv=bg:f,bgo:1,fg:0 cvv=bg:0,bgo:1,fg:0ff ma=bg:828282,bgo:1,fg:0ff na=bg:828282,bgo:1,fg:f qor=bg:f00,bgo:1,fg:f dc=bg:#993333,bgo:1 itk=fg:f00",
@@ -190,6 +206,19 @@
           background: RGB(h.bg).slice(1),
         });
         colors['editor.background'] = RGBO(h.bg, h.bgo || 1);
+        // Widgets (suggest, hover, find) sit a step off the background, so
+        // they follow the scheme instead of Monaco's stock light or dark.
+        const off = mix(RGB(h.bg), schema.theme === 'dark' ? '#ffffff' : '#000000', 0.06);
+        const edge = mix(RGB(h.bg), schema.theme === 'dark' ? '#ffffff' : '#000000', 0.18);
+        colors['editorGutter.background'] = RGBO(h.bg, h.bgo || 1);
+        ['editorWidget', 'editorSuggestWidget', 'editorHoverWidget'].forEach((w) => {
+          colors[`${w}.background`] = off;
+          colors[`${w}.border`] = edge;
+        });
+        if (h.fg) {
+          colors['editorWidget.foreground'] = RGB(h.fg);
+          colors['editorSuggestWidget.foreground'] = RGB(h.fg);
+        }
         // Monaco's default slider colours are a fixed grey at low alpha, which
         // vanishes against dark backgrounds; derive them from the text colour.
         if (h.fg) {
