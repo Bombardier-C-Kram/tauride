@@ -22,11 +22,11 @@ D.prf = {};
   ['autocompletionDelay',500],
   ['autoCompleteCharacterLimit',1],
   ['colourScheme',       'Default'], //name of the colour scheme used when not following the system
-  ['colourSchemeDark',   'Dracula'], //scheme used while following a dark system theme
+  ['colourSchemeDark',   'Dyalog Dark'], //scheme used while following a dark system theme
   // follow the system light/dark setting: 1 or 0; -1 (unset) follows it
   // unless a colourScheme has been chosen
   ['colourSchemeFollowSystem', -1],
-  ['colourSchemeLight',  'Default'], //scheme used while following a light system theme
+  ['colourSchemeLight',  'Dyalog Light'], //scheme used while following a light system theme
   ['colourSchemes',      []],//objects describing user-defined colour schemes
   ['confirmations',      {}],//saved responses to TaskDialog questions
   ['connectOnQuit',      0], // open connection page when active session ends

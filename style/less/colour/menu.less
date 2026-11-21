@@ -6,6 +6,9 @@
     color: @MENU_FG;
     font-size: 0.8em;
 	}
+	a:focus-visible {
+		outline: none;
+	}
 	.m-open {
 		background: @MENU_HOVER;
 		.m-top {
@@ -22,6 +25,7 @@
 			}
 			&:focus {
 				background: @MENU_HOVER;
+				outline: none;
 			}
 			&.m-checked::before {
 				content: '\2713';
