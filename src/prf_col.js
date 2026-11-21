@@ -14,6 +14,7 @@
   let lscm; // the scheme for a light system theme
   let dscm; // the scheme for a dark system theme
   let me; //   Monaco editor instance for displaying sample code
+  let fonts = []; // installed APL fonts: {family, fullName, postscript}
   let sel; //  the selected group's token type (.t)
   // RGB() expands the hex representation of a colour, rgb() shrinks it
   const RGB = (x) => {
@@ -230,6 +231,7 @@
     if (!followsSystem()) return D.prf.colourScheme();
     return systemIsDark() ? D.prf.colourSchemeDark() : D.prf.colourSchemeLight();
   };
+  let aplFont = D.prf.customAplFont();
   const updStl = () => { // update global style from what's in prefs.json
     const s = activeSchemeName();
     const a = SCMS.concat(D.prf.colourSchemes().map(decScm));
@@ -249,6 +251,11 @@
     [D.abtw, D.logw].forEach((w) => w && w.eval(`setPageTheme(${JSON.stringify(D.theme)})`));
     I.col_stl && (I.col_stl.textContent = renderCSS(schema));
     if (window.monaco) setMonacoTheme(schema);
+    // Monaco keeps the character widths it measured for the old font.
+    if (window.monaco && aplFont !== D.prf.customAplFont()) {
+      aplFont = D.prf.customAplFont();
+      document.fonts.load('1em apl').then(() => monaco.editor.remeasureFonts());
+    }
   };
   // $(updStl);
   D.addSynGrps = (x) => {
@@ -364,6 +371,39 @@
     }
     return r;
   };
+  // The font list stores a font by the names CSS local() matches. A value
+  // typed or saved earlier selects the font it names by any of its names.
+  const fontValue = (f) => `${f.fullName},${f.postscript}`;
+  const fontNamed = (v) => {
+    const names = v.split(',').map((x) => x.trim().toLowerCase()).filter((x) => x);
+    return fonts.find((f) => [f.family, f.fullName, f.postscript].some((n) => names.includes(n.toLowerCase())));
+  };
+  const showFont = () => {
+    const v = q.fnt.value.trim();
+    const f = v && fontNamed(v);
+    if (f) q.fnt.value = fontValue(f);
+    q.fnt_sel.value = !v ? '' : f ? `${fonts.indexOf(f)}` : 'other';
+    q.fnt.hidden = !q.fnt_sel.hidden && q.fnt_sel.value !== 'other';
+    const missing = !q.fnt_sel.hidden && !!v && !f;
+    q.fnt.classList.toggle('missing', missing);
+    q.fnt.title = missing ? 'No installed monospaced APL font has this name; the bundled APL385 Unicode is used.' : '';
+  };
+  let fontTicket = 0;
+  const listFonts = () => {
+    if (!window.__RIDE__) return;
+    const ticket = ++fontTicket;
+    const glyphs = D.lb.order.replace(/[\x00-\x7f]/g, '');
+    window.__TAURI_INTERNALS__.invoke('list_apl_fonts', { glyphs }).then((a) => {
+      if (ticket !== fontTicket) return;
+      fonts = a;
+      const esc = D.util.esc;
+      q.fnt_sel.innerHTML = '<option value="">APL385 Unicode (bundled)'
+        + a.map((f, i) => `<option value=${i}>${esc(f.family)}`).join('')
+        + '<option value=other>Other…';
+      q.fnt_sel.hidden = false;
+      showFont();
+    }, (e) => console.error('list_apl_fonts', e));
+  };
   const SC_MATCH = 'search match'; // sample text to illustrate it
   const updSampleStl = () => {
     // I.col_sample_stl.textContent = renderCSS(scm, 1);
@@ -433,9 +473,18 @@
       q = J.col;
       q.fnt_rst.onclick = () => {
         q.fnt.value = D.prf.customAplFont.getDefault();
-        q.fnt.focus();
+        showFont();
+        (q.fnt_sel.hidden ? q.fnt : q.fnt_sel).focus();
         return false;
       };
+      q.fnt_sel.onchange = () => {
+        const x = q.fnt_sel.value;
+        if (x !== 'other') q.fnt.value = x ? fontValue(fonts[+x]) : '';
+        q.fnt.hidden = x !== 'other';
+        q.fnt.classList.remove('missing');
+        if (x === 'other') q.fnt.focus();
+      };
+      q.fnt.onchange = showFont;
       const u = [];
       Object.keys(scm).forEach((g) => {
         const { fg } = scm[g];
@@ -610,6 +659,8 @@
     },
     load() {
       q.fnt.value = D.prf.customAplFont();
+      showFont();
+      listFonts();
       const a = SCMS.concat(D.prf.colourSchemes().map(decScm));
       scms = a;
       const named = (n) => a.find((x) => x.name === n);

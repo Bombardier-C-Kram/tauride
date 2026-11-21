@@ -1,6 +1,7 @@
 mod agent;
 mod companion;
 mod dialog;
+mod fonts;
 mod menu;
 mod native_services;
 mod net;
@@ -260,6 +261,7 @@ pub fn run() {
         .manage(companion::Companion::default())
         .manage(transcript::Transcript::default())
         .invoke_handler(tauri::generate_handler![
+            fonts::list_apl_fonts,
             #[cfg(feature = "ui-tests")]
             ui_test_window_state,
             #[cfg(feature = "ui-tests")]

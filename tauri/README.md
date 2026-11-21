@@ -131,6 +131,7 @@ scripts. It provides the subset of Node and Electron Ride uses:
 | `@electron/remote`: `nativeTheme` | `theme.rs` (below) |
 | `dialog.*Sync` | `dialog.rs`: GTK dialogs on Linux; task dialogs and the common item dialogs (rfd) on Windows |
 | `Menu.popup()` | `menu.rs`: native popup menus |
+| APL font list (Preferences > Style) | `fonts.rs`: installed fonts with a glyph, all of one width, for every language-bar character |
 
 Sessions: unlike Electron Ride, which starts another process for each
 session, Tauride runs every session in one process, each in its own window,
@@ -213,6 +214,13 @@ reaches pages as the `ride-system-theme` event (`nativeTheme` `updated`).
 protocol log, dialogs and Status Output start in it (`src/page_theme.js`)
 before their session sends changes. The Linux menu bar is Ride's HTML menu
 and takes its colours from the theme sheets.
+
+The APL font preference (`customAplFont`) is a comma-separated list of names
+for CSS `local()`, ahead of the bundled APL385 Unicode. The Style tab offers
+the fonts `fonts.rs` finds and stores one by its full and PostScript names:
+WebView2 matches only those, not family names, and WebKitGTK answers an
+unknown name with fontconfig's nearest match. A name that matches no listed
+font is flagged.
 
 The main window collects unsaved-stop counts from floating editors before
 requesting a global clear. An editor that closes completes its pending count
