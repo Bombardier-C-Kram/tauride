@@ -669,6 +669,21 @@
       return k in s ? { value: s[k], enumerable: true, configurable: true, writable: true } : undefined;
     },
   });
+  // Electron's nativeTheme: themeSource sets the native theme of every
+  // window ("light", "dark" or "system"); shouldUseDarkColors is the theme
+  // in effect, and 'updated' fires when the OS theme changes while it is
+  // followed (theme.rs).
+  const nativeTheme = new (class extends EventEmitter {
+    get themeSource() { return sync('winstate/get').themeSource || 'system'; }
+    set themeSource(source) { sync('theme/source', { source }); }
+    get shouldUseDarkColors() { return sync('theme/dark'); }
+    on(n, f) {
+      if (n === 'updated' && !this._listening) {
+        this._listening = tev().listen('ride-system-theme', () => this.emit('updated'));
+      }
+      return super.on(n, f);
+    }
+  })();
   const messageText = (o) => [o.title, o.message, o.detail].filter(Boolean).join('\n\n');
   // Electron's dialog calls take an optional parent window first: here a
   // src/wm.js window's native object, { id, rideWindow }.
@@ -880,6 +895,7 @@
     process: proc,
     shell,
     clipboard,
+    nativeTheme,
     dialog: {
       showMessageBoxSync,
       showMessageBox: nativeMessageBoxAsync,
