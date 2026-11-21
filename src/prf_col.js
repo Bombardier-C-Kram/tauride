@@ -10,7 +10,9 @@
   let M = {}; // H:reverse lookup dict for G
   let q; // dict of DOM elements whose ids start with "col_", keyed by the rest of the id
   let scms; // all schemes (built-in and user-defined) as objects
-  let scm = {}; //  the active scheme object
+  let scm = {}; //  the scheme shown in the sample and edited
+  let lscm; // the scheme for a light system theme
+  let dscm; // the scheme for a dark system theme
   let me; //   Monaco editor instance for displaying sample code
   let sel; //  the selected group's token type (.t)
   // RGB() expands the hex representation of a colour, rgb() shrinks it
@@ -210,27 +212,43 @@
       colors,
     });
     monaco.editor.setTheme(name);
-    if (D.el) {
-      nodeRequire('@electron/remote').getGlobal('winstate').theme = schema.theme;
-    }
+  };
+  // The OS light/dark setting comes from the native side in the desktop app
+  // and from the browser otherwise.
+  const nativeTheme = D.el && D.el.nativeTheme;
+  const darkQuery = !nativeTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  const followsSystem = () => {
+    const f = D.prf.colourSchemeFollowSystem();
+    return f < 0 ? D.db.getItem('colourScheme') == null : !!f;
+  };
+  const systemIsDark = () => {
+    if (!nativeTheme) return !!(darkQuery && darkQuery.matches);
+    nativeTheme.themeSource = 'system';
+    return nativeTheme.shouldUseDarkColors;
+  };
+  const activeSchemeName = () => {
+    if (!followsSystem()) return D.prf.colourScheme();
+    return systemIsDark() ? D.prf.colourSchemeDark() : D.prf.colourSchemeLight();
   };
   const updStl = () => { // update global style from what's in prefs.json
-    const s = D.prf.colourScheme();
+    const s = activeSchemeName();
     const a = SCMS.concat(D.prf.colourSchemes().map(decScm));
-    for (let i = 0; i < a.length; i++) {
-      if (a[i].name === s) {
-        const schema = a[i];
-        document.getElementById('theme_dark').disabled = schema.theme !== 'dark';
-        document.getElementById('theme_light').disabled = schema.theme !== 'light';
-        D.theme = schema.theme;
-        if (D.ipc && D.ipc.server) {
-          D.ipc.server.broadcast('setTheme', D.theme);
-        }
-        I.col_stl && (I.col_stl.textContent = renderCSS(schema));
-        if (window.monaco) setMonacoTheme(schema);
-        break;
-      }
+    const schema = a.find((x) => x.name === s) || a[0];
+    document.getElementById('theme_dark').disabled = schema.theme !== 'dark';
+    document.getElementById('theme_light').disabled = schema.theme !== 'light';
+    D.theme = schema.theme;
+    if (nativeTheme) {
+      if (!followsSystem()) nativeTheme.themeSource = schema.theme;
+      // Helper pages open in this theme before they hear from their session.
+      const ws = D.el.getGlobal('winstate');
+      if (ws.theme !== schema.theme) ws.theme = schema.theme;
     }
+    if (D.ipc && D.ipc.server) {
+      D.ipc.server.broadcast('setTheme', D.theme);
+    }
+    [D.abtw, D.logw].forEach((w) => w && w.eval(`setPageTheme(${JSON.stringify(D.theme)})`));
+    I.col_stl && (I.col_stl.textContent = renderCSS(schema));
+    if (window.monaco) setMonacoTheme(schema);
   };
   // $(updStl);
   D.addSynGrps = (x) => {
@@ -328,7 +346,12 @@
   /* eslint-enable */
   D.mop.then(() => updStl());
   D.prf.colourScheme(updStl);
+  D.prf.colourSchemeDark(updStl);
+  D.prf.colourSchemeFollowSystem(updStl);
+  D.prf.colourSchemeLight(updStl);
   D.prf.colourSchemes(updStl);
+  if (nativeTheme) nativeTheme.on('updated', updStl);
+  else if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', updStl);
   D.prf.customAplFont(updStl);
   const uniqScmName = (x) => { // x:suggested root
     const h = {};
@@ -372,6 +395,21 @@
     q.bc_p.hidden = !g.bc;
     sel = t;
   };
+  // The light and dark scheme lists offer the schemes of their theme. Option
+  // values are indices into scms.
+  const updSysScms = () => {
+    const fill = (c, theme, cur) => {
+      const a = scms.filter((x) => x.theme === theme);
+      const x = a.includes(cur) ? cur : a[0];
+      c.innerHTML = a.map((y) => `<option value=${scms.indexOf(y)}>${D.util.esc(y.name)}`).join('');
+      if (x) c.value = scms.indexOf(x);
+      return x;
+    };
+    lscm = fill(q.lscm, 'light', lscm);
+    dscm = fill(q.dscm, 'dark', dscm);
+    q.lscm.disabled = !q.follow.checked;
+    q.dscm.disabled = !q.follow.checked;
+  };
   const updScms = () => {
     q.scm.innerHTML = scms.map((x) => { const n = D.util.esc(x.name); return `<option value="${n}">${n}`; }).join('');
     q.scm.value = scm.name;
@@ -380,6 +418,14 @@
     updSampleStl();
     selGrp('norm', 1);
     q.chrome.value = scm.theme;
+    updSysScms();
+  };
+  const showScm = (x) => {
+    if (!x || x === scm) return;
+    scm = x;
+    q.scm.value = scm.name;
+    q.scm.onchange();
+    selGrp('norm', 1);
   };
   D.prf_tabs.col = {
     name: 'Colours',
@@ -523,7 +569,13 @@
           me.trigger('editor', 'type', { text: ' '.repeat(t.mouseColumn - p.column) });
         }
       });
-      q.chrome.onchange = () => { scm.theme = q.chrome.value; };
+      q.chrome.onchange = () => { scm.theme = q.chrome.value; updSysScms(); };
+      q.follow.onchange = () => {
+        updSysScms();
+        if (q.follow.checked) showScm(systemIsDark() ? dscm : lscm);
+      };
+      q.lscm.onchange = () => { lscm = scms[+q.lscm.value]; showScm(lscm); };
+      q.dscm.onchange = () => { dscm = scms[+q.dscm.value]; showScm(dscm); };
       q.grp.onchange = () => { selGrp(G[+q.grp.value].t); };
       ['fg', 'bg', 'bc'].forEach((p) => {
         const c = q[p];
@@ -560,16 +612,22 @@
       q.fnt.value = D.prf.customAplFont();
       const a = SCMS.concat(D.prf.colourSchemes().map(decScm));
       scms = a;
-      const s = D.prf.colourScheme();
-      [scm] = a;
-      for (let i = 0; i < a.length; i++) if (a[i].name === s) { scm = a[i]; break; }
+      const named = (n) => a.find((x) => x.name === n);
+      q.follow.checked = followsSystem();
+      lscm = named(D.prf.colourSchemeLight());
+      dscm = named(D.prf.colourSchemeDark());
+      scm = named(activeSchemeName()) || a[0];
       I.col.className = ''; updScms();
     },
     activate() { q.scm.focus(); },
     save() {
       D.prf.customAplFont(q.fnt.value);
       D.prf.colourSchemes(scms.filter((x) => !x.frz).map(encScm));
-      D.prf.colourScheme(scm.name);
+      lscm && D.prf.colourSchemeLight(lscm.name);
+      dscm && D.prf.colourSchemeDark(dscm.name);
+      // While following the system, the scheme shown is only being viewed.
+      q.follow.checked || D.prf.colourScheme(scm.name);
+      D.prf.colourSchemeFollowSystem(q.follow.checked ? 1 : 0);
     },
     resize() { },
   };

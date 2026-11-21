@@ -128,6 +128,7 @@ scripts. It provides the subset of Node and Electron Ride uses:
 | `node-ipc` | Tauri events addressed to window labels (`emitTo`); the main window serves, the others are its clients; no handshake polling |
 | Desktop windows and monitors | `src/wm.js` uses Tauri's window API (below) |
 | `@electron/remote`: `getGlobal`, `app`, `shell`, `clipboard` | `winstate.rs` (persistent window geometry), `open_url` |
+| `@electron/remote`: `nativeTheme` | `theme.rs` (below) |
 | `dialog.*Sync` | `dialog.rs`: GTK dialogs on Linux; task dialogs and the common item dialogs (rfd) on Windows |
 | `Menu.popup()` | `menu.rs`: native popup menus |
 
@@ -192,6 +193,26 @@ attaches `win.rs`'s handling to every window: close requests go to the page
 first (Ride's `onbeforeunload`), the main window's geometry is saved, and the
 app exits with the main window. `win_op` does what the JS API cannot do to
 another window: run a script in it, print it, toggle its devtools, navigate it.
+
+Themes: a colour scheme names its chrome theme, light or dark, and the
+session either uses one chosen scheme or follows the OS with a chosen light
+and dark scheme (`colourSchemeFollowSystem`, `colourSchemeLight`,
+`colourSchemeDark`). A profile that set `colourScheme` before follow-system
+existed keeps that scheme. `src/prf_col.js` sets Electron's
+`nativeTheme.themeSource` accordingly: `light` or `dark` for a chosen scheme,
+`system` when following the OS, and reads `shouldUseDarkColors` for the OS
+theme. `theme.rs` keeps the source in `winstate.json` (`themeSource`) and sets
+it on every window as it opens, so the title bar, GTK dialogs and the controls
+a webview draws natively match the scheme. On macOS and Windows a window with
+no theme set follows the OS and reports changes as `ThemeChanged`. GTK3 does
+not follow the desktop's dark preference, so on Linux `theme.rs` reads the
+XDG desktop portal's `org.freedesktop.appearance color-scheme` and always sets
+the theme explicitly; GTK's dark preference is process-wide. An OS change
+reaches pages as the `ride-system-theme` event (`nativeTheme` `updated`).
+`winstate.json` also records the theme last applied (`theme`): About, the
+protocol log, dialogs and Status Output start in it (`src/page_theme.js`)
+before their session sends changes. The Linux menu bar is Ride's HTML menu
+and takes its colours from the theme sheets.
 
 The main window collects unsaved-stop counts from floating editors before
 requesting a global clear. An editor that closes completes its pending count
