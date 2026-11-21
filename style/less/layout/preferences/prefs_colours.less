@@ -9,6 +9,16 @@
 	margin-left: 10px;
 	width: calc(100% - 200px);  
 }
+#col_fnt_sel {
+	margin-left: 10px;
+	min-width: 240px;
+	&:not([hidden]) + #col_fnt {
+		width: calc(100% - 460px);
+	}
+}
+#col_fnt.missing {
+	outline: 2px solid @THEME_PRIMARY_ALERT;
+}
 #col_new_name {
 	display: none;
 }
