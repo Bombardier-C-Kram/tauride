@@ -247,15 +247,11 @@
   // and from the browser otherwise.
   const nativeTheme = D.el && D.el.nativeTheme;
   const darkQuery = !nativeTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-  const followsSystem = () => {
-    const f = D.prf.colourSchemeFollowSystem();
-    return f < 0 ? D.db.getItem('colourScheme') == null : !!f;
-  };
-  const systemIsDark = () => {
-    if (!nativeTheme) return !!(darkQuery && darkQuery.matches);
-    nativeTheme.themeSource = 'system';
-    return nativeTheme.shouldUseDarkColors;
-  };
+  const followsSystem = () => D.prf.colourSchemeFollowSystem() !== 0;
+  // Reading the OS theme leaves the native theme source alone: the Style tab
+  // reads it to preview a scheme that may never be saved.
+  const systemIsDark = () => (nativeTheme
+    ? nativeTheme.systemUsesDarkColors : !!(darkQuery && darkQuery.matches));
   const activeSchemeName = () => {
     if (!followsSystem()) return D.prf.colourScheme();
     return systemIsDark() ? D.prf.colourSchemeDark() : D.prf.colourSchemeLight();
@@ -269,7 +265,7 @@
     document.getElementById('theme_light').disabled = schema.theme !== 'light';
     D.theme = schema.theme;
     if (nativeTheme) {
-      if (!followsSystem()) nativeTheme.themeSource = schema.theme;
+      nativeTheme.themeSource = followsSystem() ? 'system' : schema.theme;
       // Helper pages open in this theme before they hear from their session.
       const ws = D.el.getGlobal('winstate');
       if (ws.theme !== schema.theme) ws.theme = schema.theme;

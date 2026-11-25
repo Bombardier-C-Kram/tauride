@@ -672,11 +672,13 @@
   // Electron's nativeTheme: themeSource sets the native theme of every
   // window ("light", "dark" or "system"); shouldUseDarkColors is the theme
   // in effect, and 'updated' fires when the OS theme changes while it is
-  // followed (theme.rs).
+  // followed (theme.rs). systemUsesDarkColors, which Electron lacks, is the
+  // OS theme whatever the source.
   const nativeTheme = new (class extends EventEmitter {
-    get themeSource() { return sync('winstate/get').themeSource || 'system'; }
+    get themeSource() { return sync('theme/source', {}); }
     set themeSource(source) { sync('theme/source', { source }); }
     get shouldUseDarkColors() { return sync('theme/dark'); }
+    get systemUsesDarkColors() { return sync('theme/system'); }
     on(n, f) {
       if (n === 'updated' && !this._listening) {
         this._listening = tev().listen('ride-system-theme', () => this.emit('updated'));

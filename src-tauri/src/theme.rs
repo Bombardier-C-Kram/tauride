@@ -15,29 +15,39 @@ use serde_json::Value;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, Runtime, Theme, Window};
 
-/// The OS theme as last read or reported; None until known.
+/// The OS theme as the portal last reported it (Linux), or as windows last
+/// reported it (macOS, Windows: used only to pass on changes); None until
+/// known.
 static SYSTEM: Mutex<Option<Theme>> = Mutex::new(None);
 
 /// The page event for a change of the OS theme.
 const EVENT: &str = "ride-system-theme";
 
 /// Window backgrounds shown before a page paints, matching the themes'
-/// window colour.
-pub const LIGHT_BG: tauri::window::Color = tauri::window::Color(0xf2, 0xf1, 0xf0, 0xff);
-pub const DARK_BG: tauri::window::Color = tauri::window::Color(0x1f, 0x24, 0x34, 0xff);
+/// window colour. macOS paints the title bar instead.
+#[cfg(not(target_os = "macos"))]
+const LIGHT_BG: tauri::window::Color = tauri::window::Color(0xf2, 0xf1, 0xf0, 0xff);
+#[cfg(not(target_os = "macos"))]
+const DARK_BG: tauri::window::Color = tauri::window::Color(0x1f, 0x24, 0x34, 0xff);
 
-fn source<R: Runtime>(app: &AppHandle<R>) -> String {
+/// The theme source in effect.
+pub fn source<R: Runtime>(app: &AppHandle<R>) -> String {
     let db = app.state::<crate::winstate::WinState>().get();
     // Before any page has set a source, the theme pages last used.
     db.get("themeSource").or_else(|| db.get("theme")).and_then(Value::as_str).unwrap_or("system").to_owned()
 }
 
-fn system<R: Runtime>(app: &AppHandle<R>) -> Theme {
-    if let Some(t) = *SYSTEM.lock().unwrap() {
-        return t;
-    }
-    // macOS and Windows: a window whose theme is unset follows the OS.
-    app.webview_windows().values().next().and_then(|w| w.theme().ok()).unwrap_or(Theme::Light)
+/// The OS theme, whatever theme the windows are set to.
+fn system() -> Theme {
+    #[cfg(target_os = "linux")]
+    return SYSTEM.lock().unwrap().unwrap_or(Theme::Light);
+    #[cfg(not(target_os = "linux"))]
+    return os::theme();
+}
+
+/// Sync op theme/system: whether the OS theme is dark.
+pub fn system_dark() -> bool {
+    system() == Theme::Dark
 }
 
 /// The theme to set on windows; None leaves them to follow the OS.
@@ -45,16 +55,17 @@ pub fn native<R: Runtime>(app: &AppHandle<R>) -> Option<Theme> {
     match source(app).as_str() {
         "light" => Some(Theme::Light),
         "dark" => Some(Theme::Dark),
-        _ if cfg!(target_os = "linux") => Some(system(app)),
+        _ if cfg!(target_os = "linux") => Some(system()),
         _ => None,
     }
 }
 
 /// Electron's `nativeTheme.shouldUseDarkColors`: the theme in effect.
 pub fn dark<R: Runtime>(app: &AppHandle<R>) -> bool {
-    native(app).unwrap_or_else(|| system(app)) == Theme::Dark
+    native(app).unwrap_or_else(system) == Theme::Dark
 }
 
+#[cfg(not(target_os = "macos"))]
 pub fn background<R: Runtime>(app: &AppHandle<R>) -> tauri::window::Color {
     if dark(app) { DARK_BG } else { LIGHT_BG }
 }
@@ -183,5 +194,44 @@ mod portal {
         // A missing portal can take D-Bus activation's full timeout to fail.
         let t = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_else(|_| from_env());
         SYSTEM.lock().unwrap().get_or_insert(t);
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod os {
+    use super::Theme;
+
+    /// tao sets a window's theme on NSApp, so NSApp's appearance is the one
+    /// Ride chose; the user default is the OS's. AppleInterfaceStyle is "Dark"
+    /// while the OS is dark, Auto mode included, and absent while it is light.
+    #[cfg(target_os = "macos")]
+    pub fn theme() -> Theme {
+        use objc2_foundation::{ns_string, NSUserDefaults};
+        let style = NSUserDefaults::standardUserDefaults().stringForKey(ns_string!("AppleInterfaceStyle"));
+        if style.is_some_and(|s| s.to_string() == "Dark") { Theme::Dark } else { Theme::Light }
+    }
+
+    /// The setting tao itself follows for a window with no theme set.
+    #[cfg(windows)]
+    pub fn theme() -> Theme {
+        use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+        use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+        let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+        let key = wide(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        let name = wide("AppsUseLightTheme");
+        let mut light: u32 = 1;
+        let mut size = std::mem::size_of::<u32>() as u32;
+        let status = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&mut light as *mut u32).cast(),
+                &mut size,
+            )
+        };
+        if status == ERROR_SUCCESS && light == 0 { Theme::Dark } else { Theme::Light }
     }
 }

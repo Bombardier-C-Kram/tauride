@@ -1,7 +1,8 @@
 const test = require('ava');
 const { tfw } = require('./_utils');
 
-tfw.init({ src: 'se', interpreter: true });
+// A first run: no prefs.json.
+tfw.init({ src: 'se', interpreter: true, prefs: null });
 
 // The theme sheet enabled, the native theme source and the theme recorded
 // for helper pages, as the main window sees them.
@@ -13,6 +14,8 @@ async function themeState(c) {
     source: D.el.nativeTheme.themeSource,
     winstate: D.el.getGlobal('winstate').theme,
     systemDark: D.el.nativeTheme.shouldUseDarkColors,
+    osDark: D.el.nativeTheme.systemUsesDarkColors,
+    follow: D.prf.colourSchemeFollowSystem(),
   }));
 }
 
@@ -35,7 +38,9 @@ async function openStyleTab(c) {
 test('a new profile follows the system theme with the light or dark scheme', async t => {
   const c = t.context.app.client;
   const s = await themeState(c);
+  t.is(s.follow, 1);
   t.is(s.source, 'system');
+  t.is(s.osDark, s.systemDark);
   t.is(s.theme, s.systemDark ? 'dark' : 'light');
   t.is(s.winstate, s.theme);
   t.true(s.dark !== s.light);
@@ -54,15 +59,17 @@ test('a chosen scheme sets the native theme until the system is followed again',
   t.is(s.theme, s.systemDark ? 'dark' : 'light');
 });
 
-test('a profile that chose a scheme before follow-system existed keeps it', async t => {
+test('cancelling Preferences after ticking follow-system keeps the chosen theme', async t => {
   const c = t.context.app.client;
-  // As prefs.json from an earlier version: a stored colourScheme and no
-  // colourSchemeFollowSystem.
-  await c.execute(() => {
-    D.db.setItem('colourScheme', 'Nord');
-    D.prf.colourSchemeLight('Albrecht Dürer');
-  });
+  const main = await c.getWindowHandle();
+  await c.execute(() => { D.prf.colourSchemeFollowSystem(0); D.prf.colourScheme('Dracula'); });
   t.like(await themeState(c), { theme: 'dark', source: 'dark' });
+  await openStyleTab(c);
+  // Ticking follow previews the system's scheme, which reads the OS theme.
+  await c.execute(() => { I.col_follow.checked = true; I.col_follow.onchange(); });
+  await c.execute(() => I.prf_dlg_cancel.click());
+  await c.switchToWindow(main);
+  t.like(await themeState(c), { theme: 'dark', source: 'dark', winstate: 'dark', follow: 0 });
 });
 
 test('the Style tab offers light and dark schemes for following the system', async t => {
