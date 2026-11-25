@@ -227,7 +227,10 @@ for CSS `local()`, ahead of the bundled APL385 Unicode. The Style tab offers
 the fonts `fonts.rs` finds and stores one by its full and PostScript names:
 WebView2 matches only those, not family names, and WebKitGTK answers an
 unknown name with fontconfig's nearest match. A name that matches no listed
-font is flagged.
+font is flagged. A family is listed only if its upright face nearest regular
+weight qualifies, so the stored font never renders bold or italic. The last
+scan is kept until the language-bar glyphs change; fonts installed while the
+app runs appear after a restart.
 
 The main window collects unsaved-stop counts from floating editors before
 requesting a global clear. An editor that closes completes its pending count
