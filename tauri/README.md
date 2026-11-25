@@ -60,7 +60,10 @@ The UI runner stages the frontend and builds with Cargo's `ui-tests` feature int
 `src-tauri/target/ui-tests`. This enables a loopback WebDriver server and test-only
 native input commands, and disables single-instance redirection. Ordinary builds
 exclude the automation code. Each test gets a fresh preference directory and an
-app process; normal teardown quits that process and removes its profile. AVA uses
+app process. The directory's `prefs.json` holds `{"sqp":"0"}`, or the `prefs`
+option of `tfw.init` (`null` for none, as on a first run; `tfw.init` also takes a
+function of the test that returns the options). Normal teardown quits that
+process and removes its profile. AVA uses
 child processes with a 60-second inactivity timeout. A test-only stdin pipe also
 quits the app and its owned interpreters if a worker terminates abruptly. Inherited
 `RIDE_*` startup settings are cleared. Existing Ride preferences and sessions are
@@ -198,11 +201,17 @@ another window: run a script in it, print it, toggle its devtools, navigate it.
 Themes: a colour scheme names its chrome theme, light or dark, and the
 session either uses one chosen scheme or follows the OS with a chosen light
 and dark scheme (`colourSchemeFollowSystem`, `colourSchemeLight`,
-`colourSchemeDark`). A profile that set `colourScheme` before follow-system
-existed keeps that scheme. `src/prf_col.js` sets Electron's
+`colourSchemeDark`). `src/prf.js` settles `colourSchemeFollowSystem` when a
+profile is first loaded: a new profile follows the OS, and one that already
+has preferences keeps the scheme it shows, Default included (`prefs.json`
+stores a default value as no key). `src/prf_col.js` sets Electron's
 `nativeTheme.themeSource` accordingly: `light` or `dark` for a chosen scheme,
-`system` when following the OS, and reads `shouldUseDarkColors` for the OS
-theme. `theme.rs` keeps the source in `winstate.json` (`themeSource`) and sets
+`system` when following the OS. It reads the OS theme from
+`systemUsesDarkColors`, which Electron lacks and which leaves the source
+alone: the desktop portal's value on Linux, the `AppleInterfaceStyle` user
+default on macOS (tao sets a window's theme on `NSApp`, so `NSApp`'s
+appearance is Ride's choice) and `AppsUseLightTheme` on Windows. `theme.rs`
+keeps the source in `winstate.json` (`themeSource`) and sets
 it on every window as it opens, so the title bar, GTK dialogs and the controls
 a webview draws natively match the scheme. On macOS and Windows a window with
 no theme set follows the OS and reports changes as `ThemeChanged`. GTK3 does

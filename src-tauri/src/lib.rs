@@ -197,10 +197,13 @@ fn sync_dispatch<R: Runtime>(app: &AppHandle<R>, path: &str, args: &Value) -> sy
         (Some("dialog"), Some("file")) => dialog::file(app, args),
         (Some("session"), Some("env")) => Ok(win::session_env(args.get("label").and_then(Value::as_str).unwrap_or(""))),
         (Some("theme"), Some("source")) => {
-            theme::set_source(app, args.get("source").and_then(Value::as_str).unwrap_or(""));
-            Ok(Value::Null)
+            if let Some(s) = args.get("source").and_then(Value::as_str) {
+                theme::set_source(app, s);
+            }
+            Ok(Value::from(theme::source(app)))
         }
         (Some("theme"), Some("dark")) => Ok(Value::Bool(theme::dark(app))),
+        (Some("theme"), Some("system")) => Ok(Value::Bool(theme::system_dark())),
         (Some("winstate"), Some("get")) => Ok(app.state::<winstate::WinState>().get()),
         (Some("winstate"), Some("set")) => {
             let key = args.get("key").and_then(Value::as_str).ok_or_else(|| sync::err("EINVAL", "missing key"))?;
